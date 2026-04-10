@@ -56,7 +56,7 @@ def check_mst_status(mst):
         return "Lỗi API Thuế ⚠️", ""
 
 # --- 2. THANH BÊN (SIDEBAR) ---
-st.sidebar.image("https://itst.gov.vn/storage/news/2021/05/18/60a32439d5050.png", width=100) # Logo QLTT
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/vi/e/e5/LogoQLTT.png", width=100) # Logo QLTT
 st.sidebar.title("DANH MỤC QUẢN LÝ")
 danh_sach_doi = [f"Đội QLTT số {i}" for i in range(1, 16)]
 selected_doi = st.sidebar.selectbox("🚩 Chọn Đội công tác", danh_sach_doi)
@@ -67,7 +67,7 @@ if "GSHEET_URL" in st.secrets:
     st.sidebar.link_button("👁️ Mở Google Sheet Tổng", st.secrets["GSHEET_URL"], use_container_width=True)
 
 # --- 3. GIAO DIỆN CHÍNH ---
-st.title("🛡️ Hệ thống Tác nghiệp Số - QLTT Thanh Hoá")
+st.title("🛡️ Hệ thống Phân tích dữ liệu - QLTT Thanh Hoá")
 st.info(f"Đang ghi nhận dữ liệu cho: **{selected_doi}**")
 
 col_in, col_out = st.columns([1, 1.2])
@@ -78,7 +78,7 @@ with col_in:
         source = st.file_uploader("Hoặc tải ảnh lên", type=["jpg","jpeg","png"])
 
 if source:
-    if st.button("🚀 BẮT ĐẦU PHÂN TÍCH 16 TRƯỜNG"):
+    if st.button("🚀 BẮT ĐẦU PHÂN TÍCH"):
         with st.spinner("AI đang bóc tách dữ liệu..."):
             try:
                 # Nén và Encode ảnh
