@@ -84,7 +84,7 @@ if source:
     # --- 4. HIỂN THỊ VÀ CHỈNH SỬA ---
     if "full_data" in st.session_state:
         st.divider()
-        st.subheader("📝 Kiểm tra & Hiệu chỉnh 16 trường nghiệp vụ")
+        st.subheader("📝 Kiểm tra & Hiệu chỉnh")
         
         # Liên kết thuế
         mst_target = st.session_state.full_data.get('Mã số thuế') or st.session_state.full_data.get('Mã số hộ kinh doanh')
