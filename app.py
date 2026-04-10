@@ -6,7 +6,7 @@ import json
 from io import BytesIO
 
 # 1. Cấu hình API Key
-GOOGLE_API_KEY = "AIzaSyCjdD6uKle7Nf65TYL73B0pXcPPMPHN10w"
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
 st.set_page_config(page_title="AI Extractor Pro", layout="wide")
