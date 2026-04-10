@@ -1,103 +1,120 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+from datetime import datetime
 import json
-from io import BytesIO
+import requests
 
-# 1. Cấu hình API Key bảo mật từ Streamlit Secrets
-try:
-    GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-    genai.configure(api_key=GOOGLE_API_KEY)
-except Exception:
-    st.error("Lỗi: Chưa cấu hình GOOGLE_API_KEY trong phần Settings > Secrets của Streamlit.")
+# --- 1. CẤU HÌNH TRANG & GIAO DIỆN ---
+st.set_page_config(page_title="Hệ thống Kiểm soát Kinh doanh AI", layout="wide", page_icon="🛡️")
 
-# 2. Thiết lập giao diện ứng dụng
-st.set_page_config(page_title="AI OCR Pháp Quy - Quản Lý Thị Trường", layout="wide")
+# CSS tùy chỉnh để giao diện chuyên nghiệp hơn
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    </style>
+    """, unsafe_allow_html=True)
 
-st.title("🔍 Hệ Thống Tách Dữ Liệu Đăng Ký Kinh Doanh")
-st.markdown("---")
+# Kết nối Google Sheets & AI
+conn = st.connection("gsheets", type=GSheetsConnection)
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+model = genai.GenerativeModel('gemini-3-flash-preview')
 
-# 3. Thành phần tải ảnh lên
-uploaded_file = st.file_uploader("Tải ảnh Giấy phép hộ kinh doanh hoặc Doanh nghiệp...", type=["jpg", "jpeg", "png"])
+# --- 2. CÁC HÀM BỔ TRỢ ---
+def check_mst_status(mst):
+    """Tra cứu trạng thái MST từ API công khai"""
+    mst_clean = mst.replace('.', '').replace(' ', '').replace('-', '').strip()
+    try:
+        url = f"https://api.vietqr.io/v2/business/{mst_clean}"
+        res = requests.get(url, timeout=5).json()
+        if res.get('code') == '00':
+            return "Đang hoạt động ✅", res.get('data', {}).get('name', '')
+        return "Ngừng hoạt động/Không tồn tại ❌", ""
+    except:
+        return "Lỗi kết nối tra cứu ⚠️", ""
 
-if uploaded_file is not None:
-    # Chia giao diện làm 2 cột: Trái hiện ảnh, Phải hiện bảng dữ liệu
-    col1, col2 = st.columns([1, 1.2])
+# --- 3. SIDEBAR (THANH BÊN) ---
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/1041/1041916.png", width=100)
+    st.title("QUẢN LÝ THỊ TRƯỜNG")
+    st.divider()
+    st.write("👤 **Cán bộ:** Trần Lê")
+    st.write("📍 **Đơn vị:** Đội QLTT số 10")
+    st.divider()
+    if st.button("Làm mới hệ thống"):
+        st.rerun()
+
+# --- 4. NỘI DUNG CHÍNH ---
+st.title("🛡️ Hệ thống Giám sát & Xác thực Kinh doanh")
+
+tab1, tab2, tab3 = st.tabs(["🔍 KIỂM TRA MỚI", "📋 NHẬT KÝ HỆ THỐNG", "📊 THỐNG KÊ"])
+
+with tab1:
+    c1, c2 = st.columns([1, 1])
     
-    image = Image.open(uploaded_file)
-    with col1:
-        st.image(image, caption='Hình ảnh đã tải lên', use_container_width=True)
-    
-    if st.button('🚀 Bắt đầu phân tích dữ liệu'):
-        with st.spinner('AI đang quét và bóc tách thông tin, vui lòng đợi...'):
-            try:
-                # Sử dụng model Gemini 3 Flash mới nhất
-                model = genai.GenerativeModel('gemini-3-flash-preview')
-                
-                # Prompt tối ưu để lấy đầy đủ thông tin theo yêu cầu của bạn
-                prompt = """
-                Bạn là một chuyên gia OCR chuyên nghiệp về tài liệu pháp lý Việt Nam. 
-                Hãy đọc ảnh và trả về kết quả DUY NHẤT dưới dạng JSON (không có lời dẫn, không có markdown ```json) với các trường sau:
-                {
-                    "Số giấy chứng nhận/Mã số hộ": "",
-                    "Tên hộ/Doanh nghiệp": "",
-                    "Mã số thuế": "",
-                    "Địa chỉ trụ sở chính": "",
-                    "Họ tên người đại diện": "",
-                    "Số điện thoại": "",
-                    "Giới tính": "",
-                    "Ngày sinh": "",
-                    "Số CCCD/Hộ chiếu": "",
-                    "Ngày cấp CCCD": "",
-                    "Nơi cấp CCCD": "",
-                    "Chỗ ở hiện nay": "",
-                    "Ngành nghề kinh doanh": "",
-                    "Nơi cấp": "",
-                    "Ngày cấp đăng ký KD lần đầu": "",
-                    "Ngày thay đổi gần nhất": ""
-                }
-                Quy tắc:
-                1. Nếu thông tin không có trong ảnh, để giá trị là "".
-                2. 'Số giấy chứng nhận' thường nằm sau chữ 'Số:' ở đầu văn bản.
-                3. Đảm bảo các con số (MST, CCCD, Ngày tháng) chính xác 100%.
-                """
-                
-                # Gửi yêu cầu đến AI
-                response = model.generate_content([prompt, image])
-                
-                # Xử lý văn bản thô từ AI để lấy đúng định dạng JSON
-                raw_text = response.text.strip()
-                if raw_text.startswith("```"):
-                    raw_text = raw_text.split("\n", 1)[1].rsplit("\n", 1)[0]
-                
-                data_dict = json.loads(raw_text)
-                
-                with col2:
-                    st.success("✅ Đã trích xuất dữ liệu thành công!")
-                    
-                    # Tạo DataFrame và hiển thị bảng xoay dọc để dễ nhìn
-                    df = pd.DataFrame([data_dict])
-                    st.table(df.T)
-                    
-                    # 4. Tính năng Xuất file Excel
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df.to_excel(writer, index=False, sheet_name='DuLieuTrichXuat')
-                    
-                    excel_data = output.getvalue()
-                    
-                    st.download_button(
-                        label="📥 Tải về file Excel kết quả",
-                        data=excel_data,
-                        file_name=f"ket_qua_{data_dict.get('Số giấy chứng nhận/Mã số hộ', 'khong_ten')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                
-            except json.JSONDecodeError:
-                st.error("Lỗi: AI trả về dữ liệu không đúng cấu hình. Bạn hãy thử nhấn lại nút phân tích.")
-            except Exception as e:
-                st.error(f"Đã xảy ra lỗi hệ thống: {e}")
+    with c1:
+        st.subheader("Đầu vào dữ liệu")
+        mode = st.radio("Phương thức:", ["Camera điện thoại", "Tải tệp lên"], horizontal=True)
+        source = st.camera_input("Chụp ảnh") if mode == "Camera điện thoại" else st.file_uploader("Chọn ảnh", type=["jpg","png","jpeg"])
 
-st.markdown("---")
-st.info("💡 Lưu ý: Kết quả tốt nhất khi ảnh chụp rõ nét, không bị lóa đèn hoặc bị che khuất các dòng chữ.")
+    if source:
+        img = Image.open(source)
+        with c1: st.image(img, caption="Ảnh đã nạp", use_container_width=True)
+        
+        if st.button("BẮT ĐẦU ĐỐI SOÁT DỮ LIỆU"):
+            with st.spinner("Đang phân tích pháp lý..."):
+                try:
+                    # AI trích xuất
+                    prompt = "Trích xuất thông tin ĐKKD sang JSON: {ten, mst, diachi, daidien, nganh, ngaycap}"
+                    raw_res = model.generate_content([prompt, img])
+                    data = json.loads(raw_res.text.replace('```json', '').replace('```', '').strip())
+                    
+                    # Tra cứu thuế
+                    status, name_tax = check_mst_status(data['mst'])
+
+                    with c2:
+                        st.subheader("Kết quả đối soát")
+                        if "Hoạt động" in status: st.success(status)
+                        else: st.error(status)
+                        
+                        st.write(f"🏢 **Tên hộ/DN:** {data['ten']}")
+                        if name_tax: st.caption(f"(Tên gốc: {name_tax})")
+                        st.write(f"🆔 **Mã số:** {data['mst']}")
+                        st.write(f"👤 **Đại diện:** {data['daidien']}")
+                        st.write(f"📍 **Địa chỉ:** {data['diachi']}")
+                        st.write(f"📝 **Ngành nghề:** {data['nganh']}")
+
+                        # Lưu vào Sheets
+                        new_data = pd.DataFrame([{
+                            "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "MST": data['mst'],
+                            "Cơ sở": data['ten'],
+                            "Trạng thái": status,
+                            "Địa chỉ": data['diachi'],
+                            "Đại diện": data['daidien']
+                        }])
+                        
+                        old_data = conn.read(worksheet="Sheet1")
+                        combined = pd.concat([old_data, new_data], ignore_index=True)
+                        conn.update(worksheet="Sheet1", data=combined)
+                        st.toast("Đã đồng bộ dữ liệu lên Cloud!")
+
+                except Exception as e:
+                    st.error("AI không đọc được ảnh. Vui lòng chụp rõ hơn.")
+
+with tab2:
+    st.subheader("Lịch sử kiểm tra toàn địa bàn")
+    df_logs = conn.read(worksheet="Sheet1")
+    st.dataframe(df_logs.sort_values(by="Thời gian", ascending=False), use_container_width=True)
+
+with tab3:
+    st.subheader("Báo cáo nhanh")
+    df_stat = conn.read(worksheet="Sheet1")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Tổng lượt quét", len(df_stat))
+    m2.metric("Số cơ sở Đang hoạt động", len(df_stat[df_stat['Trạng thái'].str.contains("Hoạt động")]))
+    m3.metric("Số cơ sở Bất thường", len(df_stat[~df_stat['Trạng thái'].str.contains("Hoạt động")]))
