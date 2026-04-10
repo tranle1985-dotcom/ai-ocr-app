@@ -1,6 +1,6 @@
-openai
 streamlit
-pillow
+openai
 pandas
 openpyxl
+pillow
 requests
