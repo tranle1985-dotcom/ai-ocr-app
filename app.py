@@ -33,7 +33,7 @@ def check_mst_status(mst):
         return "Lỗi API Thuế ⚠️", ""
 
 # --- 3. GIAO DIỆN CHÍNH ---
-st.title("🛡️ Hệ thống Đối soát Pháp lý QLTT Thanh Hoá (v2.0)")
+st.title("🛡️ Hệ thống Quét dữ liệu ĐKKD QLTT Thanh Hoá (v2.0)")
 st.info("💡 Sử dụng model GPT-4o-mini: Chi phí cực thấp (~10 đồng/tờ), độ chính xác cao.")
 
 col_in, col_out = st.columns([1, 1.3])
