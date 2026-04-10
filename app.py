@@ -80,7 +80,7 @@ def connect_gsheet():
         return None
 
 # ================= HEADER & SIDEBAR =================
-st.markdown("<h1>🛡️ HỆ THỐNG QLTT THANH HOÁ</h1><hr>", unsafe_allow_html=True)
+st.markdown("<h1>🛡️ HỆ THỐNG PHÂN TÍCH DỮ LIỆU - QLTT THANH HOÁ</h1><hr>", unsafe_allow_html=True)
 
 st.sidebar.title("⚙️ Cấu hình hệ thống")
 danh_sach_doi = [f"Đội QLTT số {i}" for i in range(1, 16)]
@@ -96,7 +96,7 @@ if "GSHEET_URL" in st.secrets:
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📷 Cấp liệu đầu vào")
+    st.subheader("📷 Dữ liệu đầu vào")
     source = st.camera_input("Chụp ảnh trực tiếp")
     if not source:
         source = st.file_uploader("Hoặc tải ảnh từ thiết bị", type=["jpg","jpeg","png"])
@@ -235,6 +235,6 @@ st.markdown("""
 <hr>
 <p style='text-align:center; color:gray; font-size: 13px;'>
 Hệ thống Hỗ trợ Nghiệp vụ Số - Lực lượng Quản lý thị trường Thanh Hoá <br>
-<i>Được phát triển với AI OCR v4.1</i>
+<i>Được phát triển bởi Trần Lê</i>
 </p>
 """, unsafe_allow_html=True)
