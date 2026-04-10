@@ -53,6 +53,7 @@ if uploaded_file is not None:
                     "Nơi cấp CCCD": "",
                     "Chỗ ở hiện nay": "",
                     "Ngành nghề kinh doanh": "",
+                    "Nơi cấp": "",
                     "Ngày cấp đăng ký KD lần đầu": "",
                     "Ngày thay đổi gần nhất": ""
                 }
