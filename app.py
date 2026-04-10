@@ -13,7 +13,7 @@ from PIL import Image
 # ================= CONFIG & TỐI ƯU =================
 st.set_page_config(page_title="QLTT Thanh Hoá", layout="wide", page_icon="🛡️")
 
-# Hàm nén ảnh đi hiện trường (Tiết kiệm 4G, AI xử lý nhanh hơn)
+# Hàm nén ảnh đi hiện trường (Tiết kiệm 4G)
 def process_image(image_file):
     img = Image.open(image_file)
     img.thumbnail((1500, 1500)) 
@@ -108,24 +108,49 @@ with col2:
     else:
         st.info("Vui lòng chụp hoặc tải ảnh Giấy phép lên hệ thống.")
 
-# ================= AI BÓC TÁCH =================
+# ================= AI BÓC TÁCH CHUYÊN SÂU =================
 if source:
     if st.button("🚀 BẮT ĐẦU PHÂN TÍCH DỮ LIỆU", use_container_width=True):
-        with st.spinner("Hệ thống AI đang bóc tách 16 trường nghiệp vụ..."):
+        with st.spinner("Hệ thống AI đang quét sâu 16 trường nghiệp vụ..."):
             try:
                 # Nén ảnh trước khi gửi
                 compressed_img = process_image(source)
                 img_base64 = base64.b64encode(compressed_img.getvalue()).decode('utf-8')
 
                 response = client_ai.chat.completions.create(
-                    model="gpt-4o-mini", # Đã sửa thành model chuẩn
+                    model="gpt-4o-mini",
+                    temperature=0.1, # Ép AI đọc chính xác, không đoán mò
                     messages=[
+                        {
+                            "role": "system",
+                            "content": "Bạn là chuyên gia đọc Giấy chứng nhận đăng ký hộ kinh doanh tại Việt Nam. Đọc cẩn thận từng chữ, ưu tiên phần 'Thông tin về chủ hộ kinh doanh' và tiêu đề góc trên cùng bên trái."
+                        },
                         {
                             "role": "user",
                             "content": [
                                 {
                                     "type": "text", 
-                                    "text": """Trích xuất dữ liệu giấy phép kinh doanh sang JSON. Không đánh số thứ tự. BẮT BUỘC TÌM ĐỦ CÁC TRƯỜNG SAU: Mã số hộ kinh doanh, Tên hộ kinh doanh, Mã số thuế, Địa chỉ trụ sở chính, Họ tên người đại diện, Số điện thoại, Giới tính, Ngày sinh, Số CCCD, Ngày cấp CCCD, Nơi cấp CCCD, Chỗ ở hiện nay, Ngành nghề kinh doanh, Cơ quan cấp phép, Ngày đăng ký đầu, Thay đổi gần nhất. Nếu thiếu ghi 'Không có'."""
+                                    "text": """Trích xuất dữ liệu sang JSON. Bắt buộc trả về đúng 16 trường (tên trường không chứa số thứ tự).
+                                    Hướng dẫn vị trí lấy dữ liệu:
+                                    {
+                                        "Mã số hộ kinh doanh": "Dãy số dưới chữ GIẤY CHỨNG NHẬN...",
+                                        "Tên hộ kinh doanh": "Tên đầy đủ của hộ",
+                                        "Mã số thuế": "Lấy Mã số thuế, nếu không có thì lấy Mã số hộ kinh doanh",
+                                        "Địa chỉ trụ sở chính": "Địa chỉ kinh doanh",
+                                        "Họ tên người đại diện": "Tên chủ hộ",
+                                        "Số điện thoại": "Số điện thoại",
+                                        "Giới tính": "Nam hoặc Nữ",
+                                        "Ngày sinh": "Ngày tháng năm sinh",
+                                        "Số CCCD": "Đọc chính xác dòng 'Số giấy tờ pháp lý của cá nhân' hoặc 'Số CMND/CCCD'",
+                                        "Ngày cấp CCCD": "Ngày cấp nằm ngay dưới số giấy tờ pháp lý",
+                                        "Nơi cấp CCCD": "Cơ quan cấp (VD: Cục trưởng Cục CSQLHC về trật tự xã hội...)",
+                                        "Chỗ ở hiện nay": "Địa chỉ thường trú hoặc liên lạc",
+                                        "Ngành nghề kinh doanh": "Liệt kê chi tiết ngành nghề",
+                                        "Cơ quan cấp phép": "Đọc 2-3 dòng chữ in hoa ở GÓC TRÊN CÙNG BÊN TRÁI (VD: UBND HUYỆN... PHÒNG TÀI CHÍNH - KẾ HOẠCH). KHÔNG LẤY Ở PHẦN CON DẤU.",
+                                        "Ngày đăng ký đầu": "Đăng ký lần đầu ngày...",
+                                        "Thay đổi gần nhất": "Đăng ký thay đổi lần thứ... ngày... (không có ghi 'Không có')"
+                                    }.
+                                    Nếu không tìm thấy, hãy điền 'Không có'."""
                                 },
                                 {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}}
                             ]
@@ -152,7 +177,6 @@ if "data" in st.session_state:
     else:
         st.warning(f"🔍 Đối soát hệ thống thuế: **{status}**")
 
-    # Render giao diện chỉnh sửa kết hợp CSS của bạn
     cols = st.columns(2)
     edited = {}
 
@@ -161,10 +185,8 @@ if "data" in st.session_state:
         safe_key = key.replace(" ", "_").replace(":", "").replace("-", "_")
 
         with cols[i % 2]:
-            # Sử dụng class card bạn đã viết trong CSS
             st.markdown(f"<div class='card'><b>{key}</b></div>", unsafe_allow_html=True)
             
-            # Nếu là trường dài như Ngành nghề, dùng text_area cho dễ sửa
             if key in ["Ngành nghề kinh doanh", "Cơ quan cấp phép", "Chỗ ở hiện nay", "Địa chỉ trụ sở chính"]:
                 edited[key] = st.text_area(label="Hidden", value=value, key=f"input_{safe_key}", label_visibility="collapsed")
             else:
@@ -172,11 +194,11 @@ if "data" in st.session_state:
 
     # ================= LƯU CSDL =================
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("💾 XÁC NHẬN LƯU VÀO CƠ SỞ DỮ LIỆU", use_container_width=True):
+    if st.button("💾 XÁC NHẬN LƯU VÀO CƠ SỞ DỮ LIỆU CHI CỤC", use_container_width=True):
         if not user:
-            st.warning("⚠️ Vui lòng nhập tên 'Cán bộ thực hiện' ở cột bên trái trước khi lưu!")
+            st.warning("⚠️ BẮT BUỘC: Vui lòng nhập tên 'Cán bộ thực hiện' ở cột bên trái trước khi lưu!")
         else:
-            with st.spinner("Đang đồng bộ dữ liệu..."):
+            with st.spinner("Đang đồng bộ dữ liệu an toàn lên Google Sheets..."):
                 sh = connect_gsheet()
                 if sh:
                     try:
@@ -213,6 +235,6 @@ st.markdown("""
 <hr>
 <p style='text-align:center; color:gray; font-size: 13px;'>
 Hệ thống Hỗ trợ Nghiệp vụ Số - Lực lượng Quản lý thị trường Thanh Hoá <br>
-<i>Được phát triển với AI OCR v4.0</i>
+<i>Được phát triển với AI OCR v4.1</i>
 </p>
 """, unsafe_allow_html=True)
