@@ -30,9 +30,10 @@ if uploaded_file is not None:
                 model = genai.GenerativeModel('gemini-3-flash-preview')
                 
                 # Prompt đã được nâng cấp để lấy thêm các thông tin cá nhân
-                prompt = """
-                Bạn là một chuyên gia OCR. Hãy đọc ảnh và trả về kết quả duy nhất dưới dạng JSON (không kèm lời dẫn) với các trường sau:
+               prompt = """
+                Bạn là một chuyên gia OCR tài liệu pháp quy Việt Nam. Hãy đọc ảnh và trả về kết quả duy nhất dưới dạng JSON (không kèm lời dẫn) với các trường sau:
                 {
+                    "Số giấy chứng nhận/Mã số hộ": "",
                     "Tên hộ/Doanh nghiệp": "",
                     "Mã số thuế": "",
                     "Địa chỉ trụ sở": "",
@@ -40,15 +41,18 @@ if uploaded_file is not None:
                     "Số điện thoại": "",
                     "Giới tính": "",
                     "Ngày sinh": "",
-                    "Số giấy tờ định danh": "",
-                    "Ngày cấp": "",
-                    "Nơi cấp": "",
+                    "Số giấy tờ định danh (CCCD)": "",
+                    "Ngày cấp CCCD": "",
+                    "Nơi cấp CCCD": "",
                     "Chỗ ở hiện nay": "",
                     "Ngành nghề kinh doanh": "",
-                    "Ngày cấp đăng ký KD": ""
+                    "Ngày cấp đăng ký KD lần đầu": "",
+                    "Ngày thay đổi gần nhất": ""
                 }
-                Lưu ý: Nếu thông tin nào không có trong ảnh, hãy để trống "". 
-                Đặc biệt chú ý phần thông tin cá nhân của người đại diện/chủ hộ.
+                Lưu ý: 
+                1. 'Số giấy chứng nhận' thường nằm ở phần đầu văn bản, ghi là 'Số: ...'.
+                2. Nếu thông tin nào không có, hãy để trống "".
+                3. Trích xuất chính xác 100% các con số.
                 """
                 
                 response = model.generate_content([prompt, image])
