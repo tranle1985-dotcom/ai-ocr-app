@@ -1,4 +1,4 @@
-# ================= IMPORT (BẮT BUỘC PHẢI CÓ) =================
+# ================= IMPORT =================
 import streamlit as st
 from openai import OpenAI
 import gspread
@@ -35,8 +35,8 @@ h1 {
 }
 .card {
     background-color: white;
-    padding: 10px;
-    border-radius: 10px;
+    padding: 8px;
+    border-radius: 8px;
     margin-bottom: 5px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
@@ -61,15 +61,12 @@ def connect_gsheet():
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         return client.open_by_url(st.secrets["GSHEET_URL"])
-    except:
-        st.error("❌ Không kết nối được Google Sheets")
+    except Exception as e:
+        st.error(f"❌ Lỗi Google Sheets: {e}")
         return None
 
 # ================= HEADER =================
-st.markdown("""
-<h1>🛡️ HỆ THỐNG QLTT THANH HOÁ</h1>
-<hr>
-""", unsafe_allow_html=True)
+st.markdown("<h1>🛡️ HỆ THỐNG QLTT THANH HOÁ</h1><hr>", unsafe_allow_html=True)
 
 # ================= SIDEBAR =================
 st.sidebar.title("⚙️ Cấu hình")
@@ -79,7 +76,7 @@ selected_doi = st.sidebar.selectbox("Chọn đội", danh_sach_doi)
 
 user = st.sidebar.text_input("👤 Người nhập")
 
-# ================= LAYOUT =================
+# ================= UPLOAD =================
 col1, col2 = st.columns(2)
 
 with col1:
@@ -96,7 +93,7 @@ with col2:
     else:
         st.info("Chưa có ảnh")
 
-# ================= AI =================
+# ================= AI OCR =================
 if source:
     if st.button("🚀 Phân tích", use_container_width=True):
         with st.spinner("AI đang xử lý..."):
@@ -109,12 +106,12 @@ if source:
                     messages=[
                         {
                             "role": "system",
-                            "content": "Trích xuất dữ liệu giấy phép kinh doanh, trả JSON."
+                            "content": "Trích xuất dữ liệu giấy phép kinh doanh, trả JSON đầy đủ, nếu thiếu ghi 'Không có'."
                         },
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Trích xuất toàn bộ thông tin."},
+                                {"type": "text", "text": "Trích xuất các trường thông tin từ ảnh."},
                                 {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{img_base64}"}}
                             ]
                         }
@@ -126,10 +123,10 @@ if source:
                     response.choices[0].message.content
                 )
 
-            except:
-                st.error("❌ Lỗi AI")
+            except Exception as e:
+                st.error(f"❌ Lỗi AI: {e}")
 
-# ================= HIỂN THỊ =================
+# ================= FORM EDIT =================
 if "data" in st.session_state:
     st.markdown("---")
     st.subheader("📝 Kiểm tra dữ liệu")
@@ -138,10 +135,24 @@ if "data" in st.session_state:
     edited = {}
 
     for i, key in enumerate(st.session_state.data.keys()):
-        with cols[i % 2]:
-            st.markdown(f"<div class='card'><b>{key}</b></div>", unsafe_allow_html=True)
-            edited[key] = st.text_input("", st.session_state.data[key])
+        value = st.session_state.data[key]
 
+        # FIX KEY TRÙNG
+        safe_key = key.replace(" ", "_").replace(":", "").replace("-", "_")
+
+        with cols[i % 2]:
+            st.markdown(
+                f"<div class='card'><b>{key}</b></div>",
+                unsafe_allow_html=True
+            )
+
+            edited[key] = st.text_input(
+                label="",
+                value=value,
+                key=f"input_{safe_key}"
+            )
+
+    # JSON debug
     with st.expander("🔍 JSON gốc"):
         st.json(st.session_state.data)
 
@@ -155,9 +166,11 @@ if "data" in st.session_state:
                 except:
                     ws = sh.add_worksheet(title=selected_doi, rows="1000", cols="30")
 
+                # Header nếu chưa có
                 if not ws.get_all_values():
                     ws.append_row(list(edited.keys()) + ["Người nhập", "Thời gian"])
 
+                # Ghi dữ liệu
                 ws.append_row(
                     list(edited.values()) +
                     [user, datetime.now().strftime("%d/%m/%Y %H:%M:%S")]
@@ -165,6 +178,7 @@ if "data" in st.session_state:
 
                 st.success("✅ Đã lưu thành công")
 
+                # Excel backup
                 df = pd.DataFrame([edited])
                 output = BytesIO()
 
@@ -177,13 +191,13 @@ if "data" in st.session_state:
                     file_name="data.xlsx"
                 )
 
-            except:
-                st.error("❌ Lỗi lưu")
+            except Exception as e:
+                st.error(f"❌ Lỗi lưu: {e}")
 
 # ================= FOOTER =================
 st.markdown("""
 <hr>
 <p style='text-align:center;color:gray'>
-QLTT Thanh Hoá - AI System v3.3
+QLTT Thanh Hoá - AI OCR v3.3
 </p>
 """, unsafe_allow_html=True)
