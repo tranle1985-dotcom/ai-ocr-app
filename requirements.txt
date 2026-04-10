@@ -3,5 +3,6 @@ openai
 pandas
 openpyxl
 pillow
-opencv-python-headless
-numpy
+requests
+gspread
+google-auth
