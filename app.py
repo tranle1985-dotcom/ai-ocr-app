@@ -1,92 +1,107 @@
-# --- UI STYLE ---
+# ================= IMPORT (BẮT BUỘC PHẢI CÓ) =================
+import streamlit as st
+from openai import OpenAI
+import gspread
+from google.oauth2.service_account import Credentials
+import pandas as pd
+import json
+import base64
+from io import BytesIO
+from datetime import datetime
+
+# ================= CONFIG =================
+st.set_page_config(
+    page_title="QLTT Thanh Hoá",
+    layout="wide",
+    page_icon="🛡️"
+)
+
+# ================= STYLE =================
 st.markdown("""
 <style>
 .main {
     background-color: #f5f7fa;
 }
-
 h1 {
     text-align: center;
     color: #0b3d91;
-    font-weight: bold;
 }
-
-.block-container {
-    padding-top: 2rem;
-}
-
 .stButton>button {
     background-color: #d90429;
     color: white;
     border-radius: 10px;
-    height: 50px;
-    font-size: 16px;
+    height: 45px;
     font-weight: bold;
 }
-
-.stTextInput>div>div>input {
-    border-radius: 8px;
-}
-
-.css-1d391kg {
-    background-color: #0b3d91;
-}
-
 .card {
     background-color: white;
-    padding: 15px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- HEADER ---
+# ================= OPENAI =================
+if "OPENAI_API_KEY" not in st.secrets:
+    st.error("❌ Thiếu OPENAI_API_KEY")
+    st.stop()
+
+client_ai = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+# ================= GOOGLE SHEETS =================
+def connect_gsheet():
+    try:
+        scope = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        creds_dict = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+        client = gspread.authorize(creds)
+        return client.open_by_url(st.secrets["GSHEET_URL"])
+    except:
+        st.error("❌ Không kết nối được Google Sheets")
+        return None
+
+# ================= HEADER =================
 st.markdown("""
-<h1>🛡️ HỆ THỐNG NGHIỆP VỤ QUẢN LÝ THỊ TRƯỜNG THANH HOÁ</h1>
+<h1>🛡️ HỆ THỐNG QLTT THANH HOÁ</h1>
 <hr>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
-st.sidebar.markdown("## ⚙️ Cấu hình")
+# ================= SIDEBAR =================
+st.sidebar.title("⚙️ Cấu hình")
+
 danh_sach_doi = [f"Đội QLTT số {i}" for i in range(1, 14)]
-selected_doi = st.sidebar.selectbox("🚩 Chọn Đội", danh_sach_doi)
+selected_doi = st.sidebar.selectbox("Chọn đội", danh_sach_doi)
 
 user = st.sidebar.text_input("👤 Người nhập")
 
-st.sidebar.markdown("---")
-st.sidebar.info("Hệ thống AI hỗ trợ bóc tách dữ liệu giấy phép kinh doanh")
-
-# --- MAIN LAYOUT ---
-col1, col2 = st.columns([1, 1])
+# ================= LAYOUT =================
+col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("### 📷 Nguồn ảnh")
-
+    st.subheader("📷 Ảnh đầu vào")
     source = st.camera_input("Chụp ảnh")
 
     if not source:
-        source = st.file_uploader("Tải ảnh lên", type=["jpg","jpeg","png"])
-
-    if source:
-        st.success("✅ Đã nhận ảnh")
+        source = st.file_uploader("Upload ảnh", type=["jpg","jpeg","png"])
 
 with col2:
-    st.markdown("### 🖼️ Xem trước")
-
+    st.subheader("🖼️ Xem trước")
     if source:
         st.image(source, use_container_width=True)
     else:
         st.info("Chưa có ảnh")
 
-# --- AI BUTTON ---
+# ================= AI =================
 if source:
-    st.markdown("---")
-    if st.button("🚀 PHÂN TÍCH GIẤY PHÉP", use_container_width=True):
-        with st.spinner("🤖 AI đang phân tích dữ liệu..."):
+    if st.button("🚀 Phân tích", use_container_width=True):
+        with st.spinner("AI đang xử lý..."):
             try:
-                mime_type = source.type
+                mime = source.type
                 img_base64 = base64.b64encode(source.getvalue()).decode()
 
                 response = client_ai.chat.completions.create(
@@ -94,13 +109,13 @@ if source:
                     messages=[
                         {
                             "role": "system",
-                            "content": "Trích xuất dữ liệu giấy phép kinh doanh Việt Nam. Trả JSON chuẩn, không giải thích."
+                            "content": "Trích xuất dữ liệu giấy phép kinh doanh, trả JSON."
                         },
                         {
                             "role": "user",
                             "content": [
-                                {"type": "text", "text": "Trích xuất đầy đủ thông tin giấy phép kinh doanh."},
-                                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{img_base64}"}}
+                                {"type": "text", "text": "Trích xuất toàn bộ thông tin."},
+                                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{img_base64}"}}
                             ]
                         }
                     ],
@@ -114,10 +129,10 @@ if source:
             except:
                 st.error("❌ Lỗi AI")
 
-# --- DATA DISPLAY ---
+# ================= HIỂN THỊ =================
 if "data" in st.session_state:
     st.markdown("---")
-    st.markdown(f"## 📝 KIỂM TRA DỮ LIỆU - {selected_doi}")
+    st.subheader("📝 Kiểm tra dữ liệu")
 
     cols = st.columns(2)
     edited = {}
@@ -127,15 +142,11 @@ if "data" in st.session_state:
             st.markdown(f"<div class='card'><b>{key}</b></div>", unsafe_allow_html=True)
             edited[key] = st.text_input("", st.session_state.data[key])
 
-            if edited[key] == "Không có":
-                st.warning(f"⚠️ Thiếu {key}")
-
-    # --- JSON VIEW ---
-    with st.expander("🔍 Xem dữ liệu AI gốc"):
+    with st.expander("🔍 JSON gốc"):
         st.json(st.session_state.data)
 
-    # --- SAVE BUTTON ---
-    if st.button("💾 GHI NHẬN DỮ LIỆU", use_container_width=True):
+    # ================= SAVE =================
+    if st.button("💾 Lưu dữ liệu", use_container_width=True):
         sh = connect_gsheet()
         if sh:
             try:
@@ -152,28 +163,27 @@ if "data" in st.session_state:
                     [user, datetime.now().strftime("%d/%m/%Y %H:%M:%S")]
                 )
 
-                st.success("✅ Đã lưu dữ liệu thành công!")
+                st.success("✅ Đã lưu thành công")
 
-                # Excel export
                 df = pd.DataFrame([edited])
                 output = BytesIO()
 
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                with pd.ExcelWriter(output, engine="openpyxl") as writer:
                     df.to_excel(writer, index=False)
 
                 st.download_button(
-                    "📥 Tải file Excel",
+                    "📥 Tải Excel",
                     output.getvalue(),
-                    file_name="dulieu.xlsx"
+                    file_name="data.xlsx"
                 )
 
             except:
-                st.error("❌ Lỗi lưu dữ liệu")
+                st.error("❌ Lỗi lưu")
 
-# --- FOOTER ---
+# ================= FOOTER =================
 st.markdown("""
 <hr>
-<p style='text-align:center; color:gray'>
-QLTT Thanh Hoá - Hệ thống AI v3.3
+<p style='text-align:center;color:gray'>
+QLTT Thanh Hoá - AI System v3.3
 </p>
 """, unsafe_allow_html=True)
