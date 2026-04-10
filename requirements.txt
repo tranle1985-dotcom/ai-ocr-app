@@ -3,4 +3,5 @@ openai
 pandas
 openpyxl
 pillow
-requests
+opencv-python-headless
+numpy
