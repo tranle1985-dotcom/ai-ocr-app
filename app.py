@@ -33,7 +33,7 @@ def connect_gsheet():
 # --- 2. GIAO DIỆN TÁC NGHIỆP ---
 st.title("🛡️ Hệ thống Dữ liệu Nghiệp vụ QLTT Thanh Hoá")
 st.sidebar.header("Cấu hình đơn vị")
-danh_sach_doi = [f"Đội QLTT số {i}" for i in range(1, 16)]
+danh_sach_doi = [f"Đội QLTT số {i}" for i in range(1, 13)]
 selected_doi = st.sidebar.selectbox("🚩 Chọn Đội công tác", danh_sach_doi)
 
 source = st.camera_input("Chụp ảnh Giấy phép")
