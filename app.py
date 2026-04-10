@@ -1,3 +1,6 @@
+import datetime
+# Hoặc chính xác hơn nếu code bạn dùng datetime.now():
+from datetime import datetime
 import streamlit as st
 from openai import OpenAI
 import base64
