@@ -8,22 +8,24 @@ import requests
 from io import BytesIO
 
 # --- 1. CẤU HÌNH HỆ THỐNG ---
-st.set_page_config(page_title="AI Extractor Pro", layout="wide", page_icon="📑")
+st.set_page_config(page_title="AI Kiểm Tra Kinh Doanh", layout="wide", page_icon="🛡️")
 
-# Lấy API Key từ Secrets
+# Lấy API Key an toàn
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except:
-    st.error("❌ Chưa tìm thấy API Key trong mục Secrets của Streamlit!")
+    st.error("⚠️ Lỗi: Không tìm thấy GOOGLE_API_KEY trong mục Secrets!")
 
-# Thử nghiệm với model ổn định nhất hiện tại
-MODEL_NAME = 'gemini-2.0-flash' # Đổi về bản 2.0 để ổn định nhất
+# ĐỔI SANG MODEL 1.5 FLASH ĐỂ CÓ HẠN MỨC CAO HƠN
+MODEL_NAME = 'gemini-1.5-flash' 
 
-# --- 2. HÀM TRA CỨU MST ---
+# --- 2. HÀM TRA CỨU TRẠNG THÁI THUẾ ---
 def check_mst_status(mst):
     mst_clean = mst.replace('.', '').replace(' ', '').replace('-', '').strip()
+    if not mst_clean: return "Không có MST", ""
     try:
+        # Tra cứu qua API VietQR (Hỗ trợ dữ liệu doanh nghiệp VN)
         url = f"https://api.vietqr.io/v2/business/{mst_clean}"
         res = requests.get(url, timeout=5).json()
         if res.get('code') == '00':
@@ -32,32 +34,32 @@ def check_mst_status(mst):
     except:
         return "Lỗi kết nối tra cứu ⚠️", ""
 
-# --- 3. GIAO DIỆN CHÍNH ---
-st.title("🛡️ AI Đối soát Hộ kinh doanh v2.1")
+# --- 3. GIAO DIỆN ---
+st.title("🛡️ Hệ thống Đối soát AI (Bản 1.5 Flash)")
+st.info("Phiên bản tối ưu hạn mức - Hoạt động ổn định hơn cho nhiều người dùng.")
 
 col_in, col_out = st.columns([1, 1])
 
 with col_in:
-    st.subheader("📸 Chụp ảnh hoặc Tải file")
     source = st.camera_input("Chụp ảnh giấy phép")
     if not source:
-        source = st.file_uploader("Hoặc chọn ảnh từ máy", type=["jpg","jpeg","png"])
+        source = st.file_uploader("Hoặc tải ảnh lên", type=["jpg","jpeg","png"])
 
 if source:
     img = Image.open(source)
-    with col_in:
-        st.image(img, caption="Ảnh hiện trường", use_container_width=True)
+    with col_in: st.image(img, use_container_width=True)
     
     if st.button("🚀 BẮT ĐẦU PHÂN TÍCH"):
-        with st.spinner("Đang đọc dữ liệu..."):
+        with st.spinner("AI đang làm việc..."):
             try:
                 model = genai.GenerativeModel(MODEL_NAME)
-                prompt = "Trích xuất thông tin từ ảnh sang định dạng JSON chính xác với các trường: ten, mst, diachi, daidien, nganh, ngaycap. Chỉ trả về mã JSON, không kèm lời giải thích."
+                # Prompt tối ưu để AI không trả về rác
+                prompt = "Đọc ảnh Đăng ký kinh doanh. Trả về duy nhất 1 mã JSON với các trường: ten, mst, diachi, daidien, nganh, ngaycap. Không thêm lời dẫn."
                 
                 response = model.generate_content([prompt, img])
                 res_text = response.text.strip()
                 
-                # --- TỰ ĐỘNG LÀM SẠCH JSON (Fix lỗi hay gặp nhất) ---
+                # Làm sạch dữ liệu JSON
                 if "```json" in res_text:
                     res_text = res_text.split("```json")[1].split("```")[0].strip()
                 elif "```" in res_text:
@@ -65,25 +67,30 @@ if source:
                 
                 data = json.loads(res_text)
                 
-                # Tra cứu thuế
+                # Tra cứu trạng thái thuế
                 status, name_tax = check_mst_status(data.get('mst', ''))
 
                 with col_out:
-                    st.subheader("📋 Kết quả xác thực")
+                    st.subheader("📋 Kết quả đối soát")
                     if "Hoạt động" in status: st.success(status)
                     else: st.error(status)
                     
-                    st.write(f"🏢 **Tên cơ sở:** {data.get('ten', 'N/A')}")
-                    if name_tax: st.caption(f"(Tên trên hệ thống thuế: {name_tax})")
+                    st.write(f"🏢 **Tên hộ/DN:** {data.get('ten', 'N/A')}")
+                    if name_tax: st.caption(f"(Hệ thống thuế: {name_tax})")
                     st.write(f"🆔 **Mã số:** {data.get('mst', 'N/A')}")
                     st.write(f"👤 **Đại diện:** {data.get('daidien', 'N/A')}")
                     st.write(f"📍 **Địa chỉ:** {data.get('diachi', 'N/A')}")
                     st.write(f"📝 **Ngành nghề:** {data.get('nganh', 'N/A')}")
                     
-                    # Xuất Excel
-                    df_export = pd.DataFrame([data])
-                    df_export['Trạng thái thuế'] = status
-                    df_export['Thời gian'] = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    # Chuẩn bị file Excel
+                    df_export = pd.DataFrame([{
+                        "Thời gian": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                        "MST": data.get('mst'),
+                        "Tên": data.get('ten'),
+                        "Trạng thái": status,
+                        "Địa chỉ": data.get('diachi'),
+                        "Ngành nghề": data.get('nganh')
+                    }])
                     
                     output = BytesIO()
                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -98,6 +105,5 @@ if source:
                     )
 
             except Exception as e:
-                st.error("🚨 ĐÃ XẢY RA LỖI:")
-                st.code(f"{e}") # Hiện lỗi thật để biết đường sửa
-                st.info("Mẹo: Hãy thử nhấn nút Phân tích lại hoặc chụp ảnh rõ nét hơn.")
+                st.error(f"Sự cố: {e}")
+                st.info("Có thể bạn đã hết lượt dùng trong phút này. Hãy đợi 30 giây rồi nhấn lại.")
