@@ -12,7 +12,7 @@ st.set_page_config(page_title="AI Kiểm tra Thị trường - Phiên bản Exce
 
 # Giao diện Sidebar
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/1041/1041916.png", width=80)
+    st.image("https://upload.wikimedia.org/wikipedia/vi/e/e5/LogoQLTT.png", width=80)
     st.title("QLTT THANH HÓA")
     st.info("Phiên bản xuất Excel độc lập cho từng địa bàn.")
     st.divider()
