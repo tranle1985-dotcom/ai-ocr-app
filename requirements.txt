@@ -1,8 +1,8 @@
 streamlit
 openai
+gspread
+google-auth
 pandas
 openpyxl
 pillow
 requests
-gspread
-google-auth
