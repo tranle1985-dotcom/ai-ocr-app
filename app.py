@@ -8,7 +8,7 @@ import requests
 from io import BytesIO
 
 # --- 1. CẤU HÌNH HỆ THỐNG ---
-st.set_page_config(page_title="Hệ thống QLTT Nga Sơn v5.3", layout="wide", page_icon="🛡️")
+st.set_page_config(page_title="Hệ thống QLTT Thanh Hoá v2.0", layout="wide", page_icon="🛡️")
 
 @st.cache_resource
 def setup_ai(api_key):
@@ -35,7 +35,7 @@ def check_mst_status(mst):
         return "Lỗi API Thuế ⚠️", ""
 
 # --- 3. GIAO DIỆN ---
-st.title("🛡️ Hệ thống Đối soát Full 16 Trường (v5.3)")
+st.title("🛡️ Hệ thống Đối soát ")
 st.info("Bản cập nhật: Đã bổ sung đầy đủ Nơi cấp CCCD và Cơ quan cấp Giấy phép.")
 
 col_in, col_out = st.columns([1, 1.3])
