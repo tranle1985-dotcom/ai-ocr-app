@@ -2,5 +2,5 @@ streamlit
 google-generativeai
 pillow
 pandas
-st-gsheets-connection
+openpyxl
 requests
